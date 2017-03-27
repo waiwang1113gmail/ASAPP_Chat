@@ -1,0 +1,51 @@
+<nav class="navbar navbar-inverse">
+  <div class="container-fluid">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#mainNavbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>                        
+      </button>
+      <a class="navbar-brand" href="#">ASAPP Chat</a>
+    </div>
+    <div class="collapse navbar-collapse" id="mainNavbar">
+      <ul class="nav navbar-nav">
+        <li class="active"><a href="#!chat_room"">Chat Rooms</a></li>
+        <li><a href="#!my_room">My Rooms</a></li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li><a href="#" ng-click="logoff()"><span class="glyphicon glyphicon-log-out"></span> Logoff</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+    <br/>
+    <div ng-show="showError" class="alert alert-danger" role="alert">Error.</div>
+    <div class="panel panel-default">
+        <div class="panel-heading">
+          <div class="row">
+            <div class="col-md-4">
+               Chat Rooms
+            </div>
+            <div class="col-md-8 input-group">
+               <input type="text" class="form-control" placeholder="Enter chat room name"/>
+               <span class="input-group-btn">
+                  <button ng-click="join(room)" class=" btn btn-primary">
+                  Create
+                </button>
+               </span>
+            </div>
+          </div> 
+        </div>
+        <div class="panel-body">
+            <ul class="list-group">
+                <li class="list-group-item" ng-repeat="room in chatRooms">
+                    <span ng-bind="room.name"></span>
+                    <button ng-click="join(room)" ng-show="!room.alreadyJoined" class="pull-right btn btn-xs btn-default">Join</button>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>

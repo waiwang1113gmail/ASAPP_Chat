@@ -1,0 +1,14 @@
+<div class="container">
+    <div class="row">
+        <div class="col-md-4"></div>
+        <div class="login col-md-4 col-sm-12">
+            <h4>Login to ASAPP</h4>
+                <hr>
+                    <input type="text" ng-model="name" class="form-control" id="username" placeholder="Enter your name">
+                    <br/>
+                    <div ng-show="showError" class="alert alert-danger" role="alert">Error.</div>
+                    <input class="btn btn-block btn-lg btn-success submit" type="submit" ng-click="login()" value="Login">
+        </div>
+        <div class="col-md-4"></div>
+    </div>
+</div>

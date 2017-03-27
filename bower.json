@@ -1,0 +1,27 @@
+{
+  "name": "asapp",
+  "description": "A basic chat service website",
+  "main": "server.js",
+  "authors": [
+    "waiwang1113@gmail.com"
+  ],
+  "license": "ISC",
+  "keywords": [
+    "ASAPP",
+    "mean",
+    "chat"
+  ],
+  "homepage": "",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "bootstrap": "^3.3.7",
+    "angular": "^1.6.3",
+    "angular-route": "^1.6.3"
+  }
+}
