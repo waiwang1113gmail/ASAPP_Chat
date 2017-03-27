@@ -1,66 +1,133 @@
-var app = angular.module("controllers",[]);
-app.controller("loginCtrl",["$http","$scope",'$location','$rootScope',function($http,$scope,$location,$rootScope){
-    $http.get(BASE_URL + "user")
-        .then(function(response){
-            $rootScope.currentUser=response.data;
-            $location.path( "/chat_room" );   
-        });
+var app = angular.module("controllers",['constants','chatResource']);
+app.controller("welcomeCtrl",["$scope",'$location','$rootScope','UserService',function($scope,$location,$rootScope,UserService){
+    UserService.currentUser(function(data){ 
+        $location.path( "/chat_room" );   
+    },function(){
+        $location.path( "/login" );   
+    }); 
+}]).controller("loginCtrl",["$scope",'$location','$rootScope','UserService',function($scope,$location,$rootScope,UserService){
+    UserService.currentUser(function(data){
+        $rootScope.currentUser=response.data;
+        $location.path( "/chat_room" );   
+    });
     $scope.name="";
     $scope.showError=false;
     $scope.login=function(){
-        $http({
-            url: BASE_URL + "login",
-            method: "POST",
-            data: { 'name' : $scope.name }
-        }).then(function(){
+        UserService.login({},{ 'name' : $scope.name },function(){
             $location.path( "/chat_room" );  
-        },function(){ 
-            $scope.showError = true;
-        });
+        },function(){
+            $scope.showError = "Fail to login";
+        }); 
     }
-}]).controller("chatRoomCtrl",["$http","$scope",'$location','$rootScope',function($http,$scope,$location,$rootScope){
-    $scope.chatRooms = [];
-    $scope.join = function(room){
-        $http({
-            url: BASE_URL + "room/join",
-            method: "POST",
-            data: { 'room' : room._id }
-        }).then(function(){
-            $location.path( "/my_room" );  
-        },function(){ 
-            $scope.showError = true;
-        });
-    }
-    var currentUser =$rootScope.currentUser;
-    if(!currentUser){
-        $location.path("/login");
-    }else{
-        $http.get(BASE_URL + "rooms").then(function(response){
-            response.data.forEach(function(room){
-                $rootScope.currentUser.chatRoomStatus.forEach(function(roomStatus){
-                    if(roomStatus.rid==room._id){
-                        room.alreadyJoined=true;
-                    }else{
-                        room.alreadyJoined=false;
-                    }
+}]).controller("chatRoomCtrl",["$scope",'$location','$rootScope','ChatRoomService','UserService',
+    function($scope,$location,$rootScope,ChatRoomService,UserService){
+        $scope.chatRooms = [];
+        $scope.join = function(room){
+            ChatRoomService.joinRoom({}, { 'room' : room._id },function(){
+                $location.path( "/my_room" );  
+            },function(){
+                $scope.showError = "Oops, failed to join the chat room!";
+            });
+        }
+        $scope.newRoomName="";
+        $scope.createRoom = function(){
+            ChatRoomService.newRoom({},{ 'name' : $scope.newRoomName },function(){
+                $location.path( "/my_room" );
+            },function(){
+                $scope.showError = "Oops, failed to creat new chat room!";
+            });
+        }
+        var currentUser =$rootScope.currentUser;
+
+        UserService.currentUser(function(currentUser){
+            ChatRoomService.allRoom(function(rooms){
+                rooms.forEach(function(room){
+                    currentUser.chatRoomStatus.forEach(function(roomStatus){
+                        if(roomStatus.rid==room._id){
+                            room.alreadyJoined=true;
+                        }
+                    });
+                    $scope.chatRooms.push(room);
                 });
-            });
-            $scope.chatRooms = response.data; 
+            })
+        },function(){
+            $location.path("/login");
         });
-    }
-}]).controller("myRoomCtrl",["$http","$scope",'$location','$rootScope',function($http,$scope,$location,$rootScope){
-    var currentUser =$rootScope.currentUser;
-    $scope.chatRooms = [];
-    if(!currentUser){
-        $location.path("/login");
-    }else{
-        //Retrieve chat room data from server and add to the list
-        currentUser.chatRoomStatus.forEach(function(roomStatus){
-            $http.get(BASE_URL + "room/"+roomStatus.rid).then(function(response){
-                var room = response.data;
-                room.lastUpdate = roomStatus.lastUpdate;
-                $scope.chatRooms.push(room);
+}]).controller("myRoomCtrl",["$interval","$scope",'$location','$rootScope','defaultUpdateFrequency','UserService','ChatRoomService',
+    function($interval,$scope,$location,$rootScope,defaultUpdateFrequency,UserService,ChatRoomService){
+        $scope.chatRooms = [];
+        $scope.currentRoom = null;
+        $scope.chatMessages = [];
+        $scope.newMessage = "";
+
+        //Schedule a fixed delay task that retrieves message from server for current chat room;
+        var intervalPromise;
+        var currentUser;
+
+        function addMessage(msg,author){
+            msg.author=author;
+            msg.sentByMe=msg.uid===currentUser._id;
+            $scope.chatMessages.push(msg);
+        }
+        //Retrieve Messages from givem chat room, and update chat room
+        //if sinceLastUpdate is set, return 
+        function retrieveMessages(rid,sinceLastUpdate,callback){
+            var resource = sinceLastUpdate? ChatRoomService.allMessagesSinceLastUpdate:ChatRoomService.allMessages;
+            resource({id:rid},function(messages){
+                if(callback) callback();
+                var loadingFinishCallback = (function (messages){
+                    var counter=messages.length;
+                    var results= [];
+                    return function(msg){
+                        results.push(msg);
+                        if(--counter==0)  $scope.chatMessages= $scope.chatMessages.concat(results);
+                    };
+                })(messages);
+                messages.forEach(function(msg){
+                    UserService.query({id:msg.uid},function(userResponse){
+                        msg.sentByMe=msg.uid===currentUser._id;
+                        msg.author=(msg.uid===currentUser._id)?"me":userResponse.name;
+                        loadingFinishCallback(msg);
+                    });     
+                });
+            },function(){$scope.showError="Oops, failed to fetch messages from server!"});
+        }
+        $scope.sendMessage=function(){ 
+            ChatRoomService.newMessage(
+                {id:$scope.currentRoom._id },
+                { 'message' :  $scope.newMessage },
+                function(){/*Clear new message input*/$scope.newMessage="";},function(){
+                    $scope.showError = "Oops, failed to send new message!";
+                });
+        }
+        $scope.selectRoom = function(room){
+            if(room === $scope.currentRoom) return;
+
+            //Cancel previous scheduled task
+            $interval.cancel(intervalPromise);
+            //Select room to be selected and deselect other rooms
+            $scope.chatRooms.forEach(function(r){r.selected=false;});
+            room.selected=true;
+            $scope.currentRoom = room;
+            //First time fetching messages from server, without specify laastUpdate time
+            //retrieve all messages
+            retrieveMessages($scope.currentRoom._id,null,function(){
+                intervalPromise = $interval(function(){ 
+                    retrieveMessages($scope.currentRoom._id,true);
+                },defaultUpdateFrequency);
             });
-        });
-    }
-}]);
+        }
+
+        //Loading all chat room for current user
+        UserService.currentUser(function(data){
+            currentUser=data;
+            currentUser.chatRoomStatus.forEach(function(roomStatus){
+                ChatRoomService.query({id:roomStatus.rid},function(room){
+                    room.lastUpdate = roomStatus.lastUpdate;
+                    $scope.chatRooms.push(room);
+                }); 
+            });  
+        },function(){
+            $location.path("/login");
+        }); 
+    }]);

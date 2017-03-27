@@ -21,9 +21,10 @@ app.use(express.static(path.join(__dirname,'client')));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended:false}));
 app.use(cookieParser());
+
 //logoff 
 app.get("/logoff",function(req,res,next){
-    res.cookie("uid",null);
+    res.cookie("uid","",{expires: new Date(0)});
     res.json({});
 });
 //Simple authentication middleware
@@ -31,10 +32,10 @@ app.use(function(req,res,next){
     //If the request does not contains session cookie, or it is not
     //a login request, send error response
     //otherwise, add uid to request object 
+    console.log(!req.cookies.uid );
     if(!req.cookies.uid && !(req.path===LOGIN_PATH)){
         next(new UnauthenticatedError());
     } 
-    console.log()
     req.uid=req.cookies.uid;
     next();
 })
@@ -43,6 +44,8 @@ app.use('/api',api);
 
 //Error handling middleware 
 app.use(function(error,req,res,next){ 
+    console.log("ERROR");
+    console.log(error);
     res.status(error.code);
     res.json(error);
 });

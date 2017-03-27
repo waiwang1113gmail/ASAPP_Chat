@@ -7,8 +7,8 @@ var db = mongojs(config.db
 var responses = require('../modules/response');
 var entities = require('../modules/entities');
 
-var BadRequest = responses.BadRequest;
-var ServerError = responses.ServerError;
+var BadRequest = responses.BadRequest; 
+var NoteFoundError = responses.NoteFoundError;
 var UpdateOperationResponse = responses.UpdateOperationResponse;
 
 
@@ -18,11 +18,14 @@ var cookieProperties = {
     expires: new Date(Date.now() + config.sessionLength)
 };
 //Create a mongodb callback function that returns data from mongodb
-function SimpleMongoDbCallback(res){
+function SimpleMongoDbCallback(res,next){
     return function(error,obj){
         if(error){
             next(new ServerError(error));
-        }else{ 
+        }else if(!obj){
+            next(new NoteFoundError(obj));
+        }
+        else{ 
             res.json(obj);
         }
     }
@@ -61,7 +64,10 @@ function joinOrLeaveChatRoom(chatRoom,uid,res,next,join,callback){
             function(error,userUpdatedResult){
                 if(error){
                     next(new ServerError(error));
-                }else{
+                }else if(userUpdatedResult.nMatched==0){
+                    next(new BadRequest("no chat room found"));
+                }
+                else{
                     var operator = join? 
                         addOperator({
                             users: uid
@@ -85,7 +91,15 @@ function joinOrLeaveChatRoom(chatRoom,uid,res,next,join,callback){
         });
     }
 }
-
+//function to handle request of single data entry
+function retrieveSingleEntry(collections,res,next,_id){
+    try{
+        var oid=mongojs.ObjectId(_id);
+        collections.findOne({_id:oid},SimpleMongoDbCallback(res,next));
+    }catch(err){
+        next(new BadRequest("Bad id passed"));
+    }
+} 
 //////////////////////////////////////////////////////////////////////////////////////
 //User API
 //////////////////////////////////////////////////////////////////////////////////////
@@ -119,21 +133,22 @@ router.post('/login',function(req,res,next){
 
 //Fectch current user data
 router.get('/user',function(req,res,next){
-    db.user.findOne({_id:mongojs.ObjectId(req.uid)},SimpleMongoDbCallback(res));
+    retrieveSingleEntry(db.user,res,next,req.uid); 
 });
 //Fectch current user data
 router.get('/user/:id',function(req,res,next){
-    db.user.findOne({_id:mongojs.ObjectId(req.params.id)},SimpleMongoDbCallback(res));
+    retrieveSingleEntry(db.user,res,next,req.params.id);  
 });
+
+
 //////////////////////////////////////////////////////////////////////////////////////
 //Chat Room API
 //////////////////////////////////////////////////////////////////////////////////////
 router.get('/room/:id',function(req,res,next){
-    db.chat_room.findOne({_id:mongojs.ObjectId(req.params.id)},SimpleMongoDbCallback(res));
+    retrieveSingleEntry(db.chat_room,res,next,req.params.id);  
 });
-
 router.get('/rooms',function(req,res,next){
-    db.chat_room.find({},SimpleMongoDbCallback(res));
+    db.chat_room.find({},SimpleMongoDbCallback(res,next));
 });
 
 router.post('/room/create',function(req,res,next){
@@ -177,6 +192,33 @@ router.post('/room/leave',function(req,res,next){
 //////////////////////////////////////////////////////////////////////////////////////
 //Messages APi
 //////////////////////////////////////////////////////////////////////////////////////
+function retrieveMessages(res,next,uid,roomID,timestamp){
+    //Verify the request is valid: the current user is in the chat room
+    //update lastUpdate value in user document
+    var selector = {rid:roomID};
+    if(timestamp){
+        //contains a timestamp, only return messages created after the given timestamp
+        selector.timestamp={$gt:new Date(timestamp)};
+    }
+    db.user.update({
+        "chatRoomStatus.rid":roomID,
+        _id:mongojs.ObjectId(uid)
+    },{$set:{
+        "chatRoomStatus.$.lastUpdate":new Date()
+    }},function(error, response){  
+        if(error){
+            next(new ServerError(error));
+        }else if(!response.nModified || response.nModified==0){
+            next(new BadRequest("the user has to joined the chat room first"));
+        }else{
+            db.message.find(selector,SimpleMongoDbCallback(res,next));
+        }
+    });
+
+}
+
+
+
 
 router.post('/room/:id/newmessage',function(req,res,next){
     var messageRequest = req.body;
@@ -188,12 +230,21 @@ router.post('/room/:id/newmessage',function(req,res,next){
 });
 
 router.get('/room/:id/messages',function(req,res,next){
-    var timestamp = req.query.timestamp;
-    var selector = {rid:req.params.id};
-    if(timestamp){
-        //contains a timestamp, only return messages created after the given timestamp
-        selector.timestamp={$gt:new Date(timestamp)};
-    }
-    db.message.find(selector,SimpleMongoDbCallback(res));
+    var roomID=req.params.id;
+    retrieveMessages(res,next,req.uid,roomID);
+});
+
+router.get('/room/:id/messagesSinceLastupdate',function(req,res,next){
+    var roomID=req.params.id;
+    db.user.find({
+        _id:mongojs.ObjectId(req.uid)
+    },{"chatRoomStatus":{$elemMatch: {rid:roomID}}},function(error,userData){
+        if(error){
+            next( new ServerError(error));
+        }else{ 
+            retrieveMessages(res,next,req.uid,roomID,userData[0].chatRoomStatus[0].lastUpdate);
+        }
+    });
 });
 module.exports = router;
+
