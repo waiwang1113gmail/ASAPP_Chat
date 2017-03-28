@@ -34,7 +34,7 @@ function SimpleMongoDbCallback(res,next){
 //Return operator for given conditions and values
 function addOperator(operation){
     return {
-        $addToSet: operation
+        $push: operation
     }
 }
 function removeOperator(operation){
@@ -47,7 +47,7 @@ function joinOrLeaveChatRoom(chatRoom,uid,res,next,join,callback){
     if(!chatRoom || chatRoom.length==0){
         next(new BadRequest("Bad Request: must contains a chat room id"));
     }else{
-        var updateRequest = {};
+        var updateRequest = {}; 
         var operator = join? 
             addOperator({
                 chatRoomStatus: new entities.ChatRoomStatus(chatRoom)
@@ -140,7 +140,45 @@ router.get('/user/:id',function(req,res,next){
     retrieveSingleEntry(db.user,res,next,req.params.id);  
 });
 
-
+router.get('/user/unread/messages',function(req,res,next){
+    db.user.findOne({
+        _id:mongojs.ObjectId(req.uid)
+    },function(error,userData){
+        if(error){ 
+            next( new ServerError(error));
+        }else{  
+            var results=[];
+            var counter =userData.chatRoomStatus.length; 
+            userData.chatRoomStatus.forEach(function(s){ 
+                console.log(s.rid);
+                var pipeline = [{
+                    $match:{
+                        rid:s.rid,
+                        timestamp:{
+                            $gt: (s.lastUpdate?s.lastUpdate:new Date(0))
+                        }
+                    }
+                },{
+                    $group:{
+                        _id:"$rid",
+                        count:{
+                            $sum:1
+                        }
+                    }
+                }];
+                db.message.aggregate(pipeline,function(error,response){
+                    console.log(response)
+                    if(error){
+                        next(new ServerError(error));
+                    }else{
+                        results.push(response[0]);
+                        if(--counter==0) res.json(results);
+                    }
+                })
+            });
+        }
+    });
+});
 //////////////////////////////////////////////////////////////////////////////////////
 //Chat Room API
 //////////////////////////////////////////////////////////////////////////////////////
@@ -161,7 +199,7 @@ router.post('/room/create',function(req,res,next){
             if(error){
                 next(new ServerError(error));
             }else{
-                joinOrLeaveChatRoom(room._id,uid,res,next,true,function(){
+                joinOrLeaveChatRoom(room._id.toString(),uid,res,next,true,function(){
                     db.user.update({
                         _id: mongojs.ObjectId(uid)
                     },{$addToSet : {users: uid}},function(error,result){
@@ -178,8 +216,7 @@ router.post('/room/create',function(req,res,next){
 });
 
 router.post('/room/join',function(req,res,next){
-    var joinRequest = req.body;
-    console.log(joinRequest);
+    var joinRequest = req.body; 
     joinOrLeaveChatRoom(joinRequest.room,req.uid,res,next,true);
     
 });
@@ -195,7 +232,7 @@ router.post('/room/leave',function(req,res,next){
 function retrieveMessages(res,next,uid,roomID,timestamp){
     //Verify the request is valid: the current user is in the chat room
     //update lastUpdate value in user document
-    var selector = {rid:roomID};
+    var selector = {rid:roomID}; 
     if(timestamp){
         //contains a timestamp, only return messages created after the given timestamp
         selector.timestamp={$gt:new Date(timestamp)};
@@ -205,7 +242,7 @@ function retrieveMessages(res,next,uid,roomID,timestamp){
         _id:mongojs.ObjectId(uid)
     },{$set:{
         "chatRoomStatus.$.lastUpdate":new Date()
-    }},function(error, response){  
+    }},function(error, response){   
         if(error){
             next(new ServerError(error));
         }else if(!response.nModified || response.nModified==0){
@@ -246,5 +283,6 @@ router.get('/room/:id/messagesSinceLastupdate',function(req,res,next){
         }
     });
 });
+
 module.exports = router;
 

@@ -23,4 +23,17 @@ app
             $location.path("/login");
         });
     }
-}]);
+}]).filter('unique',function(){
+    return function(collections, attr){
+        var keys=[],outputs=[];
+        angular.forEach(collections,function(o){
+            var key=o[attr];
+            if(keys.indexOf(key)>=0){
+                keys.push(key);
+                outputs.push(o);
+            } 
+        });
+        return outputs;
+
+    }
+});

@@ -31,8 +31,7 @@ app.get("/logoff",function(req,res,next){
 app.use(function(req,res,next){ 
     //If the request does not contains session cookie, or it is not
     //a login request, send error response
-    //otherwise, add uid to request object 
-    console.log(!req.cookies.uid );
+    //otherwise, add uid to request object  
     if(!req.cookies.uid && !(req.path===LOGIN_PATH)){
         next(new UnauthenticatedError());
     } 
@@ -43,9 +42,7 @@ app.use(function(req,res,next){
 app.use('/api',api);
 
 //Error handling middleware 
-app.use(function(error,req,res,next){ 
-    console.log("ERROR");
-    console.log(error);
+app.use(function(error,req,res,next){  
     res.status(error.code);
     res.json(error);
 });

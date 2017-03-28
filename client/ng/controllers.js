@@ -7,7 +7,7 @@ app.controller("welcomeCtrl",["$scope",'$location','$rootScope','UserService',fu
     }); 
 }]).controller("loginCtrl",["$scope",'$location','$rootScope','UserService',function($scope,$location,$rootScope,UserService){
     UserService.currentUser(function(data){
-        $rootScope.currentUser=response.data;
+        $rootScope.currentUser=data;
         $location.path( "/chat_room" );   
     });
     $scope.name="";
@@ -61,8 +61,20 @@ app.controller("welcomeCtrl",["$scope",'$location','$rootScope','UserService',fu
         $scope.newMessage = "";
 
         //Schedule a fixed delay task that retrieves message from server for current chat room;
-        var intervalPromise;
+        var intervalPromise; 
         var currentUser;
+
+        //Cancel all schedule tasks
+        function cleanUp(){ 
+            $scope.showError=null;
+            $scope.chatMessages = [];
+            $scope.newMessage = "";
+            $interval.cancel(intervalPromise);
+        }
+        $scope.$on("$destroy", function() {
+            console.log("hello");
+            cleanUp();
+        });
 
         function addMessage(msg,author){
             msg.author=author;
@@ -73,7 +85,7 @@ app.controller("welcomeCtrl",["$scope",'$location','$rootScope','UserService',fu
         //if sinceLastUpdate is set, return 
         function retrieveMessages(rid,sinceLastUpdate,callback){
             var resource = sinceLastUpdate? ChatRoomService.allMessagesSinceLastUpdate:ChatRoomService.allMessages;
-            resource({id:rid},function(messages){
+            resource({id:rid},function(messages){ 
                 if(callback) callback();
                 var loadingFinishCallback = (function (messages){
                     var counter=messages.length;
@@ -104,10 +116,12 @@ app.controller("welcomeCtrl",["$scope",'$location','$rootScope','UserService',fu
             if(room === $scope.currentRoom) return;
 
             //Cancel previous scheduled task
-            $interval.cancel(intervalPromise);
+            cleanUp();
+
             //Select room to be selected and deselect other rooms
             $scope.chatRooms.forEach(function(r){r.selected=false;});
             room.selected=true;
+            room.unread=null;
             $scope.currentRoom = room;
             //First time fetching messages from server, without specify laastUpdate time
             //retrieve all messages

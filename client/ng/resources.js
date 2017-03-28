@@ -18,6 +18,10 @@ angular
                 url:baseUrl+'/login',
                 method:'post', 
                 isArray:false
+            },unreadMessages:{
+                url: baseUrl+'/user/unread/messages',
+                method: 'GET',
+                isArray:true
             }
         });
     }]).factory('ChatRoomService', ['$resource','baseUrl',function($resource,baseUrl){
