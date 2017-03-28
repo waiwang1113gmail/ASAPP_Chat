@@ -6,8 +6,7 @@ app.controller("welcomeCtrl",["$scope",'$location','$rootScope','UserService',fu
         $location.path( "/login" );   
     }); 
 }]).controller("loginCtrl",["$scope",'$location','$rootScope','UserService',function($scope,$location,$rootScope,UserService){
-    UserService.currentUser(function(data){
-        $rootScope.currentUser=data;
+    UserService.currentUser(function(data){ 
         $location.path( "/chat_room" );   
     });
     $scope.name="";
@@ -36,13 +35,13 @@ app.controller("welcomeCtrl",["$scope",'$location','$rootScope','UserService',fu
             },function(){
                 $scope.showError = "Oops, failed to creat new chat room!";
             });
-        }
-        var currentUser =$rootScope.currentUser;
+        } 
 
         UserService.currentUser(function(currentUser){
+            $scope.currentUser=currentUser;
             ChatRoomService.allRoom(function(rooms){
                 rooms.forEach(function(room){
-                    currentUser.chatRoomStatus.forEach(function(roomStatus){
+                    $scope.currentUser.chatRoomStatus.forEach(function(roomStatus){
                         if(roomStatus.rid==room._id){
                             room.alreadyJoined=true;
                         }
@@ -62,7 +61,7 @@ app.controller("welcomeCtrl",["$scope",'$location','$rootScope','UserService',fu
 
         //Schedule a fixed delay task that retrieves message from server for current chat room;
         var intervalPromise; 
-        var currentUser;
+        $scope.currentUser;
 
         //Cancel all schedule tasks
         function cleanUp(){ 
@@ -71,14 +70,13 @@ app.controller("welcomeCtrl",["$scope",'$location','$rootScope','UserService',fu
             $scope.newMessage = "";
             $interval.cancel(intervalPromise);
         }
-        $scope.$on("$destroy", function() {
-            console.log("hello");
+        $scope.$on("$destroy", function() { 
             cleanUp();
         });
 
         function addMessage(msg,author){
             msg.author=author;
-            msg.sentByMe=msg.uid===currentUser._id;
+            msg.sentByMe=msg.uid===$scope.currentUser._id;
             $scope.chatMessages.push(msg);
         }
         //Retrieve Messages from givem chat room, and update chat room
@@ -97,8 +95,8 @@ app.controller("welcomeCtrl",["$scope",'$location','$rootScope','UserService',fu
                 })(messages);
                 messages.forEach(function(msg){
                     UserService.query({id:msg.uid},function(userResponse){
-                        msg.sentByMe=msg.uid===currentUser._id;
-                        msg.author=(msg.uid===currentUser._id)?"me":userResponse.name;
+                        msg.sentByMe=msg.uid===$scope.currentUser._id;
+                        msg.author=(msg.uid===$scope.currentUser._id)?"me":userResponse.name;
                         loadingFinishCallback(msg);
                     });     
                 });
@@ -134,8 +132,8 @@ app.controller("welcomeCtrl",["$scope",'$location','$rootScope','UserService',fu
 
         //Loading all chat room for current user
         UserService.currentUser(function(data){
-            currentUser=data;
-            currentUser.chatRoomStatus.forEach(function(roomStatus){
+            $scope.currentUser=data;
+            $scope.currentUser.chatRoomStatus.forEach(function(roomStatus){
                 ChatRoomService.query({id:roomStatus.rid},function(room){
                     room.lastUpdate = roomStatus.lastUpdate;
                     $scope.chatRooms.push(room);

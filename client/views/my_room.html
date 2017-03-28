@@ -14,6 +14,7 @@
         <li class="active"><a href="#!my_room">My Rooms</a></li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
+        <li><a><span ng-bind="currentUser.name"></span></a></li>
         <li><a href="#" ng-click="logoff()"><span class="glyphicon glyphicon-log-out"></span> Logoff</a></li>
       </ul>
     </div>
@@ -26,7 +27,7 @@
     <div class="row"  style="height:100%">
         <div class="col-md-3 room-list">
             <div class="list-group">
-              <a ng-click="selectRoom(room)" class="list-group-item" ng-class="{active:room.selected}" ng-repeat="room in chatRooms">
+              <a ng-click="selectRoom(room)" class="list-group-item" ng-class="{active:room.selected}" ng-repeat="room in chatRooms | orderBy:'name'">
                 <span class="badge" ng-show="room.unread" ng-bind="room.unread"></span>
                 <span ng-bind="room.name"></span>
               </a>

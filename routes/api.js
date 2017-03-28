@@ -8,6 +8,7 @@ var responses = require('../modules/response');
 var entities = require('../modules/entities');
 
 var BadRequest = responses.BadRequest; 
+var ServerError = responses.ServerError; 
 var NoteFoundError = responses.NoteFoundError;
 var UpdateOperationResponse = responses.UpdateOperationResponse;
 
@@ -278,6 +279,8 @@ router.get('/room/:id/messagesSinceLastupdate',function(req,res,next){
     },{"chatRoomStatus":{$elemMatch: {rid:roomID}}},function(error,userData){
         if(error){
             next( new ServerError(error));
+        }if(!userData[0]){
+            next( new ServerError(""));
         }else{ 
             retrieveMessages(res,next,req.uid,roomID,userData[0].chatRoomStatus[0].lastUpdate);
         }
