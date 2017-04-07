@@ -4,7 +4,7 @@
   "description": "A basic chat service website",
   "main": "server.js",
   "scripts": {
-    "postinstall":"bower install"
+    "postinstall": "bower install"
   },
   "keywords": [
     "ASAPP",
@@ -19,7 +19,8 @@
     "ejs": "^2.5.6",
     "express": "^4.15.2",
     "log4js": "^1.1.1",
-    "mongojs": "^2.4.0"
+    "mongojs": "^2.4.0",
+    "socket.io": "^1.7.3"
   },
   "devDependencies": {
     "chai": "^3.5.0",

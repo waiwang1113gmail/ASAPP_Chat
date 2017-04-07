@@ -174,4 +174,7 @@
 a{
 	cursor: pointer;
 }
-	
+.user-list a{
+	cursor:default;
+	pointer-events: none;
+}	

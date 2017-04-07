@@ -26,34 +26,43 @@
 <div class="container" style="height:100%">
     <div class="row"  style="height:100%">
         <div class="col-md-3 room-list">
+            <h3>Chat Rooms</h3>
             <div class="list-group">
               <a ng-click="selectRoom(room)" class="list-group-item" ng-class="{active:room.selected}" ng-repeat="room in chatRooms | orderBy:'name'">
                 <span class="badge" ng-show="room.unread" ng-bind="room.unread"></span>
                 <span ng-bind="room.name"></span>
               </a>
             </div>
+            <h3>Chat Room Users</h3>
+            <div class="list-group user-list">
+              <a class="list-group-item" ng-class="{'list-group-item-success':user.active}" ng-repeat="user in chatRoomUsers | orderBy:['-active','name']">
+                <span ng-bind="user.name"></span>
+              </a>
+            </div>
         </div>
-        <div class="col-md-9 chat-room">
+        <div class="col-md-9 chat-room" ng-show="currentRoom">
             <div ng-show="showError" class="alert alert-danger" role="alert"><span ng-bind="showError"></span></div>
-            <div class="chat_window" ng-show="currentRoom">
+            <div class="chat_window">
                 <div class="top_menu">
                     <div class="title">
                       <span ng-bind="currentRoom.name"></span>
                     </div>
                 </div>
                 <ul class="messages">
-                    <li class="message" ng-class="{left:!message.sentByMe,right:message.sentByMe}" ng-repeat="message in chatMessages  |orderBy: 'timestamp'" scroll-to-end>
-                        <div class="avatar">
+
+                    <li class="message" ng-class="{left:!message.sentByMe,right:message.sentByMe,system_msg:message.systemMessage}" ng-repeat="message in chatMessages  | orderBy: 'timestamp'" scroll-to-end>
+                        <div class="avatar" ng-show="!message.systemMessage">
                         </div>
-                        <div class="sender">
+                        <div class="sender" ng-show="!message.systemMessage">
                           <span class="username" ng-bind="message.author"></span>
                           <span class="sent_time" ng-bind="message.timestamp | date:'MM/dd/yyyy h:mma'"></span>
                         </div>
-                        <div class="text_wrapper">
+                        <div class="text_wrapper" ng-show="!message.systemMessage">
                             <div class="text">
                                 <span ng-bind="message.message"></span>
                             </div>
                         </div>
+                        <p ng-show="message.systemMessage"><span ng-bind="message.message"></span></p>
                     </li>
                 </ul>
                 <div class="bottom_wrapper clearfix">

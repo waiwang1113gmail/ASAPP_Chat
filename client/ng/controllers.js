@@ -52,38 +52,51 @@ app.controller("welcomeCtrl",["$scope",'$location','$rootScope','UserService',fu
         },function(){
             $location.path("/login");
         });
-}]).controller("myRoomCtrl",["$interval","$scope",'$location','$rootScope','defaultUpdateFrequency','UserService','ChatRoomService',
-    function($interval,$scope,$location,$rootScope,defaultUpdateFrequency,UserService,ChatRoomService){
+}]).controller("myRoomCtrl",["$scope",'$location','$rootScope','defaultUpdateFrequency','UserService','ChatRoomService',
+    function($scope,$location,$rootScope,defaultUpdateFrequency,UserService,ChatRoomService){
+        //Contains all chat rooms that current user has joined
         $scope.chatRooms = [];
-        $scope.currentRoom = null;
+        //Chat messages for selected chat room
         $scope.chatMessages = [];
+        //Current chat room the user is in
+        $scope.currentRoom = null;
+        $scope.chatRoomUsers = [];
+        //Holding new  message
         $scope.newMessage = "";
-
-        //Schedule a fixed delay task that retrieves message from server for current chat room;
-        var intervalPromise; 
+        //current login user
         $scope.currentUser;
 
-        //Cancel all schedule tasks
+        var socket; 
+
         function cleanUp(){ 
+            
             $scope.showError=null;
             $scope.chatMessages = [];
-            $scope.newMessage = "";
-            $interval.cancel(intervalPromise);
+            $scope.chatRoomUsers = [];
+            $scope.newMessage = ""; 
+            if(socket) socket.disconnect();
         }
         $scope.$on("$destroy", function() { 
             cleanUp();
         });
 
-        function addMessage(msg,author){
-            msg.author=author;
-            msg.sentByMe=msg.uid===$scope.currentUser._id;
-            $scope.chatMessages.push(msg);
+        function addMessage(msg){
+            msg=msg.data;
+            msg.timestamp=new Date(msg.timestamp);
+            UserService.query({id:msg.uid},function(userResponse){
+                msg.sentByMe=msg.uid===$scope.currentUser._id;
+                msg.author=(msg.uid===$scope.currentUser._id)?"me":userResponse.name;
+                $scope.chatMessages.push(msg);
+            });
+            UserService.lastUpdate({rid:msg.rid},{"timestamp":msg.timestamp},function(){
+                console.log("update timestamp successfully");
+            },function(){
+                console.log("failed to update timestamp");
+            })
         }
-        //Retrieve Messages from givem chat room, and update chat room
-        //if sinceLastUpdate is set, return 
-        function retrieveMessages(rid,sinceLastUpdate,callback){
-            var resource = sinceLastUpdate? ChatRoomService.allMessagesSinceLastUpdate:ChatRoomService.allMessages;
-            resource({id:rid},function(messages){ 
+        //Retrieve all messages since last update for given chat room
+        function retrieveMessages(rid,callback){ 
+            ChatRoomService.allMessagesSinceLastUpdate({id:rid},function(messages){ 
                 if(callback) callback();
                 var loadingFinishCallback = (function (messages){
                     var counter=messages.length;
@@ -94,43 +107,123 @@ app.controller("welcomeCtrl",["$scope",'$location','$rootScope','UserService',fu
                     };
                 })(messages);
                 messages.forEach(function(msg){
+                    msg.timestamp=new Date(msg.timestamp);
                     UserService.query({id:msg.uid},function(userResponse){
                         msg.sentByMe=msg.uid===$scope.currentUser._id;
                         msg.author=(msg.uid===$scope.currentUser._id)?"me":userResponse.name;
                         loadingFinishCallback(msg);
                     });     
                 });
-            },function(){$scope.showError="Oops, failed to fetch messages from server!"});
+            },function(){
+                showError("Oops, failed to fetch messages from server!");
+            });
         }
         $scope.sendMessage=function(){ 
-            ChatRoomService.newMessage(
-                {id:$scope.currentRoom._id },
-                { 'message' :  $scope.newMessage },
-                function(){/*Clear new message input*/$scope.newMessage="";},function(){
-                    $scope.showError = "Oops, failed to send new message!";
-                });
+            socket.emit("message",{
+                rid:$scope.currentRoom._id,
+                message: $scope.newMessage 
+            });
+
+            $scope.newMessage ="";
         }
         $scope.selectRoom = function(room){
             if(room === $scope.currentRoom) return;
-
-            //Cancel previous scheduled task
             cleanUp();
 
-            //Select room to be selected and deselect other rooms
+            //set the room to be selected and deselect other rooms
             $scope.chatRooms.forEach(function(r){r.selected=false;});
             room.selected=true;
-            room.unread=null;
             $scope.currentRoom = room;
-            //First time fetching messages from server, without specify laastUpdate time
-            //retrieve all messages
-            retrieveMessages($scope.currentRoom._id,null,function(){
-                intervalPromise = $interval(function(){ 
-                    retrieveMessages($scope.currentRoom._id,true);
-                },defaultUpdateFrequency);
+            function activeUser(uid,active){
+                var found=false;
+                $scope.chatRoomUsers.forEach(function(chatUser){
+                    if(chatUser._id===uid){
+                        found=true;
+                        chatUser.active=active;
+                        var msg={systemMessage:true}
+                        msg.timestamp=new Date();
+                        msg["message"]=active? chatUser.name+" has joined the chat room!":chatUser.name+" has left the chat room!"
+                        console.log(msg);
+                        $scope.chatMessages.push(msg);
+                        $scope.$apply();
+                    }
+
+                });
+                //New client so we need to update our chat room clientlist
+                if(!found){
+                    UserService.query({id:uid},function(user){
+                        user.active=active;
+                        $scope.chatRoomUsers.push(user);
+
+                        var msg={systemMessage:true}
+                        msg.timestamp=new Date();
+                        msg["message"]=active? chatUser.name+" has joined the chat room!":chatUser.name+" has left the chat room!"
+                        $scope.chatMessages.push(msg);
+                        $scope.$apply();
+
+
+                    });
+                }
+            }
+            //Retrieve all messages for given chat room, and initialize socket io connection 
+            retrieveMessages($scope.currentRoom._id,function(){
+                socket = io();
+                socket.on('connect',function(){
+                    socket.on("message",function(message){
+                        console.log("new message "+message)
+                        console.log(message)
+                        if($scope.currentRoom._id == message.rid){
+                            addMessage(message);
+                        }
+                    });
+                    //Send Join request to server
+                    socket.emit("join",{
+                        rid: $scope.currentRoom._id,
+                        uid: $scope.currentUser._id,
+                        uname: $scope.currentUser.name
+                    });
+
+                    //get all clients currently in the chat room
+                    socket.on("clientlist",function(clientList){
+                        clientList.data.forEach(function(uid){
+                            activeUser(uid,true);
+                        })
+                    });
+                    socket.on("newclient",function(data){
+                        var uid=data.data;
+                        if(uid!== $scope.currentUser._id){
+                            console.log("new Client: "+uid);
+                            activeUser(uid,true);
+                        }
+                        
+                    });
+                    socket.on("clientleave",function(data){
+                        var uid=data.data;
+                        console.log("client left: "+uid);
+                        activeUser(uid,false);
+                    });
+                    socket.on("chaterror",function(data){
+                        console.log("chat error: "+data);
+                        showErrorMessages(data);
+                    });
+                });
             });
+            var loadingFinishCallback = (function (users){
+                var counter=users.length;
+                var results= [];
+                return function(user){
+                    user.active=false;
+                    results.push(user);
+                    if(--counter==0)  $scope.chatRoomUsers= $scope.chatRoomUsers.concat(results);
+                };
+            })($scope.currentRoom.users);
+            $scope.currentRoom.users.forEach(function(uid){
+                UserService.query({id:uid},loadingFinishCallback);
+            });
+
         }
 
-        //Loading all chat room for current user
+        //Loading all chat rooms for current user
         UserService.currentUser(function(data){
             $scope.currentUser=data;
             $scope.currentUser.chatRoomStatus.forEach(function(roomStatus){
@@ -142,4 +235,7 @@ app.controller("welcomeCtrl",["$scope",'$location','$rootScope','UserService',fu
         },function(){
             $location.path("/login");
         }); 
+        function showErrorMessages(msg){
+            $scope.showError=msg;
+        }
     }]);

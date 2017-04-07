@@ -8,6 +8,10 @@ var ChatRoomStatus = entities.ChatRoomStatus;
 
 
 //////////////////////////////////////////////////////////////////////////////////////
+//Utilities
+//////////////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////////////
 //User API
 //////////////////////////////////////////////////////////////////////////////////////
 obj.addUser = function(newUser,callback){
@@ -44,8 +48,29 @@ obj.addChatRoom = function(uid, rid, callback){
     }
     
 }
+obj.deleteChatRoom = function(uid, rid, callback){
+    try{
+        var uid_obj = mongojs.ObjectId(uid);
+        db.user.update({
+            _id: uid_obj
+        },{
+            $pull: {
+                chatRoomStatus: {
+                    rid: rid
+                }
+            }
+        },callback);
+    }catch(error){
+        console.log("ERROR: "+ error );
+        callback("Invalid id passed")
+    }
+    
+}
 obj.updateLastUpdate=function(uid,rid,timestamp,callback){
     try{
+        console.log(uid);
+        console.log(rid);
+        console.log(timestamp);
         var oid=mongojs.ObjectId(uid);
         db.user.update({
             "chatRoomStatus.rid":rid,
@@ -80,7 +105,7 @@ obj.getChatRoom=function(rid,callback){
     }
 } 
 obj.getChatRooms=function(callback){
-    db.chat_room.findOne({},callback);
+    db.chat_room.find({},callback);
 }
 obj.createChatRoom=function(chatRoom,callback){
     db.chat_room.save(chatRoom,callback);
@@ -98,7 +123,31 @@ obj.joinChatRoom = function(rid,uid,callback){
             if(error){
                 console.log("ERROR: "+ error );
                 callback("Database error ");
-            }else if(userUpdatedResult.nMatched==0){
+            }else if(updatedChatRoom.nMatched==0){
+                callback("no chat room found");
+            }else{
+                callback(null,{});
+            }
+        });
+    }catch(err){
+        console.log("ERROR: "+ err );
+        callback("bad id passed");
+    }
+}
+obj.leaveChatRoom = function(rid,uid,callback){
+    try{
+        var rid_obj = mongojs.ObjectId(rid);
+        db.chat_room.update({
+            _id: rid_obj
+        },{
+            $pull: {
+                users: uid
+            }
+        },function(error,updatedChatRoom){
+            if(error){
+                console.log("ERROR: "+ error );
+                callback("Database error ");
+            }else if(updatedChatRoom.nMatched==0){
                 callback("no chat room found");
             }else{
                 callback(null,{});
@@ -115,7 +164,7 @@ obj.joinChatRoom = function(rid,uid,callback){
 //Messages APi
 //////////////////////////////////////////////////////////////////////////////////////
 
-obj.retrieveMessages =function(rid,uid,timstamp,callback){
+obj.retrieveMessages =function(rid,uid,timestamp,callback){
     //Verify the request is valid: the current user is in the chat room
     //update lastUpdate value in user document
     var selector = {rid:rid}; 

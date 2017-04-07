@@ -117,6 +117,7 @@ describe('chat room tests',function(){
                 url: ROOM_ENDPOINTS.rooms,
                 jar:cookieJar2
             },function(err,httpResponse,body){
+                console.log(body);
                 expect(httpResponse.statusCode).to.equal(200);
                 var responseJson = JSON.parse(body);
                 expect(responseJson.length).to.equal(1);
@@ -163,4 +164,3 @@ describe('chat room tests',function(){
     });
 });
 
- 

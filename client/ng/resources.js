@@ -18,10 +18,10 @@ angular
                 url:baseUrl+'/login',
                 method:'post', 
                 isArray:false
-            },unreadMessages:{
-                url: baseUrl+'/user/unread/messages',
-                method: 'GET',
-                isArray:true
+            },lastUpdate:{
+                url: baseUrl+'/user/room/:rid/lastupdate',
+                method: 'post',
+                isArray:false
             }
         });
     }]).factory('ChatRoomService', ['$resource','baseUrl',function($resource,baseUrl){
@@ -49,7 +49,7 @@ angular
                 method: 'GET',
                 isArray:true
             },allMessagesSinceLastUpdate:{
-                url: baseUrl+'/room/:id/messagesSinceLastupdate',
+                url: baseUrl+'/room/:id/messages',
                 method: 'GET',
                 isArray:true
             }
