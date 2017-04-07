@@ -145,10 +145,10 @@ app.controller("welcomeCtrl",["$scope",'$location','$rootScope','UserService',fu
                         msg["message"]=active? chatUser.name+" has joined the chat room!":chatUser.name+" has left the chat room!"
                         console.log(msg);
                         $scope.chatMessages.push(msg);
-                        $scope.$apply();
                     }
 
                 });
+                $scope.$apply();
                 //New client so we need to update our chat room clientlist
                 if(!found){
                     UserService.query({id:uid},function(user){
@@ -157,12 +157,11 @@ app.controller("welcomeCtrl",["$scope",'$location','$rootScope','UserService',fu
 
                         var msg={systemMessage:true}
                         msg.timestamp=new Date();
-                        msg["message"]=active? chatUser.name+" has joined the chat room!":chatUser.name+" has left the chat room!"
+                        msg["message"]=active? user.name+" has joined the chat room!":user.name+" has left the chat room!"
                         $scope.chatMessages.push(msg);
-                        $scope.$apply();
-
-
+                     
                     });
+
                 }
             }
             //Retrieve all messages for given chat room, and initialize socket io connection 
