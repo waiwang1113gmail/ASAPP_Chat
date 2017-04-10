@@ -7,7 +7,7 @@
                     <input type="text" ng-model="name" class="form-control" ng-keyup="$event.keyCode == 13 ? login() : null" id="username" placeholder="Enter your name">
                     <br/>
                     <div ng-show="showError" class="alert alert-danger" role="alert">Error.</div>
-                    <input class="btn btn-block btn-lg btn-success submit" type="submit" ng-click="login()" value="Login">
+                    <input class="btn btn-block btn-lg btn-success submit" type="submit" ng-click="login(name)" value="Login">
         </div>
         <div class="col-md-4"></div>
     </div>
