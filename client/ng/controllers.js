@@ -172,7 +172,19 @@ app.controller("chatRoomCtrl",["$scope",'$rootScope','UserService','ChatRoomServ
         $scope.newMessage = "";
         var currentUser = AuthService.getCurrentuser();
         var deregisters =[];
+        //TODO implements a better way to restore chat room data.
+        //Current implementation just simply store all data in a map
+        var CHAT_ROOMS_DATA = {};
+
         var roomSelectionDeregister=$rootScope.$on('roomSelection',function(room){
+            //if current room is selected room just return 
+            if($scope.currentRoom && room._id === $scope.currentRoom._id)
+                return;
+            //If there the user is currently in a chat room, we need to save the chat room data
+            //for later the user joins the chat room again
+            if($scope.currentRoom)
+            CHAT_ROOMS_DATA[]
+
             $scope.currentRoom = room;
             $log.info('Select room: '+JSON.stringify(room));
             ChatRoomService.allMessagesSinceLastUpdate({ id: room._id },function(messages){ 
@@ -204,9 +216,9 @@ app.controller("chatRoomCtrl",["$scope",'$rootScope','UserService','ChatRoomServ
                 $log.error(JSON.stringify(err));
                 $rootScope.$broadcast('chatError',"Oops, failed to retrieve messages");
             });
-        });
-        deregisters.push(roomSelectionDeregister);
+        }); 
         $scope.$on("$destroy", function() { 
+            roomSelectionDeregister();
             $log.info('chatRoomCtrl is destroyed');
             SocketIOService.close();
         });
