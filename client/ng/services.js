@@ -36,11 +36,19 @@ module.factory('AuthService',['UserService', '$rootScope',function(UserService,$
 
     var socketIoService ={};
 
+    function cleanup(){
+        $log.debug("disconnet socket");
+        if(socket) {
+             $log.debug("disconnet socket");
+             socket.disconnect();
+        }
+    }
     socketIoService.init=function(){
         if(!io){
             $log.error("socket io is not found");
             $rootScope.$broadcast('chatError','failed to connect to server socket')
         }else{
+            cleanup();
             socket =io();
             socket.on('connect',function(){
                 socket.on("message",function(message){
@@ -83,8 +91,7 @@ module.factory('AuthService',['UserService', '$rootScope',function(UserService,$
     }
 
     socketIoService.close=function(){
-        $log.info("closing connection to server web socket");
-        if(socket) socket.disconnect();
+        cleanup();
     }
      
 }])

@@ -171,9 +171,9 @@ app.controller("chatRoomCtrl",["$scope",'$rootScope','UserService','ChatRoomServ
         $scope.chatMessages = [];
         $scope.newMessage = "";
         var currentUser = AuthService.getCurrentuser();
-        var deregisters =[];
+
         //TODO implements a better way to restore chat room data.
-        //Current implementation just simply store all data in a map
+        //Current implementation just simply store all data in the repository 
         var CHAT_ROOMS_DATA = {};
 
         var roomSelectionDeregister=$rootScope.$on('roomSelection',function(room){
@@ -182,11 +182,27 @@ app.controller("chatRoomCtrl",["$scope",'$rootScope','UserService','ChatRoomServ
                 return;
             //If there the user is currently in a chat room, we need to save the chat room data
             //for later the user joins the chat room again
-            if($scope.currentRoom)
-            CHAT_ROOMS_DATA[]
+            if($scope.currentRoom){
+                $log.info('saving chat room data from the repsotory: '+ JSON.stringify($scope.currentRoom));
+                var roomData = {};
+                roomData.chatMessages=$scope.chatMessages;
+                roomData.newMessage=$scope.newMessage ;
+                CHAT_ROOMS_DATA[$scope.currentRoom._id]=roomData;
+            }
+            //The chat room has been visited, restore the data from the repository.
+            if(CHAT_ROOMS_DATA[room._id]){
+                $log.info('restoring chat room data from the repsotory: '+ JSON.stringify(room));
+                $scope.chatMessages=CHAT_ROOMS_DATA[room._id].chatMessaes;
+                $scope.newMessage=CHAT_ROOMS_DATA[room._id].newMessage;
+            }
+                
 
             $scope.currentRoom = room;
             $log.info('Select room: '+JSON.stringify(room));
+
+            //fectch all messages for the chat room since last update
+            //Even after restoring messages data from the repository, since the chat room
+            //stops receiving messages from server after it is saved to the repository.
             ChatRoomService.allMessagesSinceLastUpdate({ id: room._id },function(messages){ 
                 var loadingFinishCallback = (function (messages){
                     var counter=messages.length;
