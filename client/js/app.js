@@ -8,14 +8,12 @@ app
         templateUrl:'views/login.html',
         controller:'loginCtrl'
     }).when('/welcome',{
-        templateUrl:'views/welcome.html',
-        controller:'welcomeCtrl'
+        templateUrl:'views/welcome.html'
     }).when('/chat_room',{
         templateUrl:'views/chat_room.html',
-        controller:'chatRoomCtrl'
+        controller:'chatRoomListCtrl'
     }).when('/my_room',{
-        templateUrl:'views/my_room.html',
-        controller:'myRoomCtrl'
+        templateUrl:'views/my_room.html'
     }).otherwise('/welcome');
 }]).run(['$rootScope',"$http","$location", function($rootScope,$http,$location){
     $rootScope.logoff = function(){

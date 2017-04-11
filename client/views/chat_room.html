@@ -23,7 +23,7 @@
 
 <div class="container">
     <br/>
-    <div ng-show="showError" class="alert alert-danger" role="alert">Error.</div>
+    <div ng-controller="errorMessageController" ng-show="errorMsg" class="alert alert-danger" role="alert"><span ng-bind="errorMsg"> </span></div>
     <div class="panel panel-default">
         <div class="panel-heading">
           <div class="row">

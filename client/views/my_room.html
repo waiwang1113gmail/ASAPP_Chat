@@ -25,7 +25,7 @@
 </style>
 <div class="container" style="height:100%">
     <div class="row"  style="height:100%">
-        <div class="col-md-3 room-list">
+        <div class="col-md-3 room-list" ng-controller="myChatRoomListCtrl">
             <h3>Chat Rooms</h3>
             <div class="list-group">
               <a ng-click="selectRoom(room)" class="list-group-item" ng-class="{active:room.selected}" ng-repeat="room in chatRooms | orderBy:'name'">
@@ -34,13 +34,13 @@
               </a>
             </div>
             <h3>Chat Room Users</h3>
-            <div class="list-group user-list">
+            <div class="list-group user-list" ng-controller="chatRoomUserListCtrl">
               <a class="list-group-item" ng-class="{'list-group-item-success':user.active}" ng-repeat="user in chatRoomUsers | orderBy:['-active','name']">
                 <span ng-bind="user.name"></span>
               </a>
             </div>
         </div>
-        <div class="col-md-9 chat-room" ng-show="currentRoom">
+        <div class="col-md-9 chat-room" ng-show="currentRoom" ng-controller="chatRoomCtrl">
             <div ng-show="showError" class="alert alert-danger" role="alert"><span ng-bind="showError"></span></div>
             <div class="chat_window">
                 <div class="top_menu">

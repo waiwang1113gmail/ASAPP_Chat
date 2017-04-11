@@ -41,6 +41,8 @@ app.controller("errorMessageController",["$scope",'$rootScope','$log',function($
 app.controller("loginCtrl",["$scope",'$location','$rootScope','AuthService','$log',
     function($scope,$location,$rootScope,AuthService,$log){
         $scope.name="";
+        //Use login function in AuthService
+        //And register for login events 
         $scope.login=AuthService.login;
         var loginSuccessDeregister= $rootScope.$on('loginSuccess',function(){
             $log.debug('login succeed');
@@ -59,7 +61,7 @@ app.controller("loginCtrl",["$scope",'$location','$rootScope','AuthService','$lo
 }]);
 
 //Controller for listing all chat rooms available
-app.controller("chatRoomCtrl",["$scope",'$location','$rootScope','ChatRoomService','UserService','$log',
+app.controller("chatRoomListCtrl",["$scope",'$location','$rootScope','ChatRoomService','UserService','$log',
     function($scope,$location,$rootScope,ChatRoomService,UserService,$log){
         $scope.chatRooms = [];
         $scope.newRoomName="";
@@ -233,195 +235,61 @@ app.controller("chatRoomCtrl",["$scope",'$rootScope','UserService','ChatRoomServ
                 $rootScope.$broadcast('chatError',"Oops, failed to retrieve messages");
             });
         }); 
+        //Add a new system message to chat room
+        function systemMessage(msg){
+            $log.debug("new system message: "+ JSON.stringify(msg));
+            var msg={systemMessage:true}
+            msg.timestamp=new Date();
+            $scope.chatMessages.push(msg);
+        }
+        var newClientListenerDeregister=$rootScope.$on('newChatUser',function(data){
+            $log.debug("new chat client: "+JSON.stringify(data));
+            if(data.rid==$scope.currentRoom._id){ 
+                if(!Array.isArray(data.data)){
+                    data.data = [data.data]; 
+                }
+                data.data.forEach(function(user){
+                    systemMessage(user.name+" has joined the chat room!");
+                });
+            }else{
+                $log.warn("Received client data for different chat room");
+            }
+        });
+        var clientLeaveListenerDeregister=$rootScope.$on('chatUserLeave',function(data){
+            $log.debug("client left room: "+JSON.stringify(data));
+            if(data.rid==$scope.currentRoom._id){ 
+                systemMessage(data.data.name+" has joined the chat room!");
+            }else{
+                $log.warn("Received client data for different chat room");
+            }
+        });
+        var newMessageListenerDeregister=$rootScope.$on('newmessage',function(data){
+            $log.trace("client left room: "+JSON.stringify(data));
+            var msg=data.data;
+            msg.timestamp=new Date(msg.timestamp);
+            UserService.getUser(msg.uid,function(user,error){
+                if(error){
+                    $log.error("ERROR: retrieve user data for: "+JSON.stringify(msg.uid));
+                    $rootScope.$broadcast('chatError',"Oops, failed to get user info");
+                }else{
+                    msg.sentByMe=msg.uid===currentUser._id;
+                    msg.author=(msg.uid===currentUser._id)?"me":userResponse.name;
+                    $scope.chatMessages.push(msg);
+                }
+            });
+            UserService.lastUpdate({rid:msg.rid},{"timestamp":msg.timestamp},function(){
+                $log.info("update timestamp successfully");
+            },function(){
+                $log.error("failed to update timestamp");
+            })
+        });
+
         $scope.$on("$destroy", function() { 
             roomSelectionDeregister();
+            newClientListenerDeregister();
+            clientLeaveListenerDeregister();
+            newMessageListenerDeregister();
             $log.info('chatRoomCtrl is destroyed');
             SocketIOService.close();
         });
-    }]);
-app.controller("myRoomCtrl",["$scope",'$location','$rootScope','defaultUpdateFrequency','UserService','ChatRoomService',
-    function($scope,$location,$rootScope,defaultUpdateFrequency,UserService,ChatRoomService){
-        //Contains all chat rooms that current user has joined
-        $scope.chatRooms = [];
-        //Chat messages for selected chat room
-        $scope.chatMessages = [];
-        //Current chat room the user is in
-        $scope.currentRoom = null;
-        $scope.chatRoomUsers = [];
-        //Holding new  message
-        $scope.newMessage = "";
-        //current login user
-        $scope.currentUser;
-
-        var socket; 
-
-        function cleanUp(){ 
-            
-            $scope.showError=null;
-            $scope.chatMessages = [];
-            $scope.chatRoomUsers = [];
-            $scope.newMessage = ""; 
-            if(socket) socket.disconnect();
-        }
-        $scope.$on("$destroy", function() { 
-            cleanUp();
-        });
-
-        function addMessage(msg){
-            msg=msg.data;
-            msg.timestamp=new Date(msg.timestamp);
-            UserService.query({id:msg.uid},function(userResponse){
-                msg.sentByMe=msg.uid===$scope.currentUser._id;
-                msg.author=(msg.uid===$scope.currentUser._id)?"me":userResponse.name;
-                $scope.chatMessages.push(msg);
-            });
-            UserService.lastUpdate({rid:msg.rid},{"timestamp":msg.timestamp},function(){
-                console.log("update timestamp successfully");
-            },function(){
-                console.log("failed to update timestamp");
-            })
-        }
-        //Retrieve all messages since last update for given chat room
-        function retrieveMessages(rid,callback){ 
-            ChatRoomService.allMessagesSinceLastUpdate({id:rid},function(messages){ 
-                if(callback) callback();
-                var loadingFinishCallback = (function (messages){
-                    var counter=messages.length;
-                    var results= [];
-                    return function(msg){
-                        results.push(msg);
-                        if(--counter==0)  $scope.chatMessages= $scope.chatMessages.concat(results);
-                    };
-                })(messages);
-                messages.forEach(function(msg){
-                    msg.timestamp=new Date(msg.timestamp);
-                    UserService.query({id:msg.uid},function(userResponse){
-                        msg.sentByMe=msg.uid===$scope.currentUser._id;
-                        msg.author=(msg.uid===$scope.currentUser._id)?"me":userResponse.name;
-                        loadingFinishCallback(msg);
-                    });     
-                });
-            },function(){
-                showError("Oops, failed to fetch messages from server!");
-            });
-        }
-        $scope.sendMessage=function(){ 
-            socket.emit("message",{
-                rid:$scope.currentRoom._id,
-                message: $scope.newMessage 
-            });
-
-            $scope.newMessage ="";
-        }
-        $scope.selectRoom = function(room){
-            if(room === $scope.currentRoom) return;
-            cleanUp();
-
-            //set the room to be selected and deselect other rooms
-            $scope.chatRooms.forEach(function(r){r.selected=false;});
-            room.selected=true;
-            $scope.currentRoom = room;
-            function activeUser(uid,active){
-                var found=false;
-                $scope.chatRoomUsers.forEach(function(chatUser){
-                    if(chatUser._id===uid){
-                        found=true;
-                        chatUser.active=active;
-                        var msg={systemMessage:true}
-                        msg.timestamp=new Date();
-                        msg["message"]=active? chatUser.name+" has joined the chat room!":chatUser.name+" has left the chat room!"
-                        console.log(msg);
-                        $scope.chatMessages.push(msg);
-                    }
-
-                });
-                $scope.$apply();
-                //New client so we need to update our chat room clientlist
-                if(!found){
-                    UserService.query({id:uid},function(user){
-                        user.active=active;
-                        $scope.chatRoomUsers.push(user);
-
-                        var msg={systemMessage:true}
-                        msg.timestamp=new Date();
-                        msg["message"]=active? user.name+" has joined the chat room!":user.name+" has left the chat room!"
-                        $scope.chatMessages.push(msg);
-                     
-                    });
-
-                }
-            }
-            //Retrieve all messages for given chat room, and initialize socket io connection 
-            retrieveMessages($scope.currentRoom._id,function(){
-                socket = io();
-                socket.on('connect',function(){
-                    socket.on("message",function(message){
-                        console.log("new message "+message)
-                        console.log(message)
-                        if($scope.currentRoom._id == message.rid){
-                            addMessage(message);
-                        }
-                    });
-                    //Send Join request to server
-                    socket.emit("join",{
-                        rid: $scope.currentRoom._id,
-                        uid: $scope.currentUser._id,
-                        uname: $scope.currentUser.name
-                    });
-
-                    //get all clients currently in the chat room
-                    socket.on("clientlist",function(clientList){
-                        clientList.data.forEach(function(uid){
-                            activeUser(uid,true);
-                        })
-                    });
-                    socket.on("newclient",function(data){
-                        var uid=data.data;
-                        if(uid!== $scope.currentUser._id){
-                            console.log("new Client: "+uid);
-                            activeUser(uid,true);
-                        }
-                        
-                    });
-                    socket.on("clientleave",function(data){
-                        var uid=data.data;
-                        console.log("client left: "+uid);
-                        activeUser(uid,false);
-                    });
-                    socket.on("chaterror",function(data){
-                        console.log("chat error: "+data);
-                        showErrorMessages(data);
-                    });
-                });
-            });
-            var loadingFinishCallback = (function (users){
-                var counter=users.length;
-                var results= [];
-                return function(user){
-                    user.active=false;
-                    results.push(user);
-                    if(--counter==0)  $scope.chatRoomUsers= $scope.chatRoomUsers.concat(results);
-                };
-            })($scope.currentRoom.users);
-            $scope.currentRoom.users.forEach(function(uid){
-                UserService.query({id:uid},loadingFinishCallback);
-            });
-
-        }
-
-        //Loading all chat rooms for current user
-        UserService.currentUser(function(data){
-            $scope.currentUser=data;
-            $scope.currentUser.chatRoomStatus.forEach(function(roomStatus){
-                ChatRoomService.query({id:roomStatus.rid},function(room){
-                    room.lastUpdate = roomStatus.lastUpdate;
-                    $scope.chatRooms.push(room);
-                }); 
-            });  
-        },function(){
-            $location.path("/login");
-        }); 
-        function showErrorMessages(msg){
-            $scope.showError=msg;
-        }
     }]);
