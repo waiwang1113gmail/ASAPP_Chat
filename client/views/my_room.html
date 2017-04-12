@@ -28,7 +28,7 @@
         <div class="col-md-3 room-list" ng-controller="myChatRoomListCtrl">
             <h3>Chat Rooms</h3>
             <div class="list-group">
-              <a ng-click="selectRoom(room)" class="list-group-item" ng-class="{active:room.selected}" ng-repeat="room in chatRooms | orderBy:'name'">
+              <a ng-click="selectRoom(room)" class="list-group-item" ng-class="{active:room.selected}" ng-repeat="room in myChatRoomList | orderBy:'name'">
                 <span class="badge" ng-show="room.unread" ng-bind="room.unread"></span>
                 <span ng-bind="room.name"></span>
               </a>
@@ -41,7 +41,7 @@
             </div>
         </div>
         <div class="col-md-9 chat-room" ng-show="currentRoom" ng-controller="chatRoomCtrl">
-            <div ng-show="showError" class="alert alert-danger" role="alert"><span ng-bind="showError"></span></div>
+             <div ng-controller="errorMessageController" ng-show="errorMsg" class="alert alert-danger" role="alert"><span ng-bind="errorMsg"> </span></div>
             <div class="chat_window">
                 <div class="top_menu">
                     <div class="title">
@@ -67,12 +67,12 @@
                 </ul>
                 <div class="bottom_wrapper clearfix">
                     <div class="message_input_wrapper">
-                        <input class="message_input" ng-keyup="$event.keyCode == 13 ? sendMessage() : null" placeholder="Type your message here..." ng-model="newMessage" />
+                        <input class="message_input" ng-keyup="$event.keyCode == 13 ? sendMessage(newMessage) : null" placeholder="Type your message here..." ng-model="newMessage" />
                     </div>
                 <div class="send_message">
                     <div class="icon">
                     </div>
-                    <div class="text" ng-click="sendMessage()">
+                    <div class="text" ng-click="sendMessage(newMessage)">
                       Send
                     </div>
                 </div>

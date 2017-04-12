@@ -7,6 +7,7 @@ module.factory('AuthService',['UserService', '$rootScope',function(UserService,$
     //If it fails, it broadcasts 'loginFail' event on $rootScope
     authService.login = function(username){
         UserService.login({},{ 'name' : username},function(data){
+            console.log(data);
             authService.setCurrentUser(data);
             $rootScope.$broadcast("loginSuccess");
         },function(){
@@ -89,9 +90,19 @@ module.factory('AuthService',['UserService', '$rootScope',function(UserService,$
             });
         }
     }
-
+    socketIoService.newMessage = function(roomid,message){
+        if(!socket){
+            $log.warn("Socket is not open, cannot join chat room: "+JSON.stringify(chatRoom) +" ,"+JSON.stringify(user));
+        }else{
+            $log.debug("new message"+ JSON.stringify(message));
+            socket.emit("message",{
+                rid:roomid,
+                message: message
+           });
+        }
+    }
     socketIoService.close=function(){
         cleanup();
     }
-     
+    return socketIoService;
 }])

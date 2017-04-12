@@ -31,7 +31,7 @@ angular
             if(users[uid]){
                 callback(users[uid]);
             }else{
-                obj.query({id:msg.uid},function(userResponse){
+                obj.query({id:uid},function(userResponse){
                     users[uid]=userResponse;
                     callback(userResponse);
                 },function(error){

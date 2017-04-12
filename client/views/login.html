@@ -4,7 +4,7 @@
         <div class="login col-md-4 col-sm-12">
             <h4>Login to ASAPP</h4>
                 <br/>
-                    <input type="text" ng-model="name" class="form-control" ng-keyup="$event.keyCode == 13 ? login() : null" id="username" placeholder="Enter your name">
+                    <input type="text" ng-model="name" class="form-control" ng-keyup="$event.keyCode == 13 ? login(name) : null" id="username" placeholder="Enter your name">
                     <br/>
                     <div ng-controller="errorMessageController" ng-show="errorMsg" class="alert alert-danger" role="alert"><span ng-bind="errorMsg"> </span></div>
                     <input class="btn btn-block btn-lg btn-success submit" type="submit" ng-click="login(name)" value="Login">

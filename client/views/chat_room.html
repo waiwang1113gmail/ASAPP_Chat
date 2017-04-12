@@ -31,7 +31,7 @@
                Chat Rooms
             </div>
             <div class="col-md-8 input-group">
-               <input type="text" class="form-control" ng-model="newRoomName" ng-keyup="$event.keyCode == 13 ? createRoom() : null" placeholder="Enter chat room name"/>
+               <input type="text" class="form-control" ng-model="newRoomName" ng-keyup="$event.keyCode == 13 ? createRoom(newRoomName) : null" placeholder="Enter chat room name"/>
                <span class="input-group-btn">
                   <button ng-click="createRoom(newRoomName)" class=" btn btn-primary">
                   Create
